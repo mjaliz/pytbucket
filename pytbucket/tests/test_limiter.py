@@ -3,7 +3,7 @@ import time
 import pytest
 from datetime import timedelta, datetime
 from pytbucket.limiter import Limiter
-from pytbucket.storage.refiller import Refiller
+from pytbucket.limiter.refiller import Refiller
 
 
 @pytest.mark.parametrize(
