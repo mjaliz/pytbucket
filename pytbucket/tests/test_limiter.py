@@ -2,8 +2,9 @@ import time
 
 import pytest
 from datetime import timedelta, datetime
-from pytbucket.limiter import Limiter
-from pytbucket.limiter.refiller import Refiller
+from pytbucket.limiter.limiter import Limiter
+from pytbucket.limiter.limit import Limit
+from pytbucket.limiter.tmp_file import TmpFileLimiter
 
 
 @pytest.mark.parametrize(
@@ -11,33 +12,24 @@ from pytbucket.limiter.refiller import Refiller
     [
         [
             {
-                "refillers": [
-                    Refiller(key="5-sec", capacity=10, rate=timedelta(milliseconds=100)),
+                "limits": [
+                    Limit(period=timedelta(seconds=10), rate=30, burst=50),
                 ],
-                "duration": timedelta(seconds=5),
-                "delay": 100
+                "duration": timedelta(seconds=10),
+                "delay": timedelta(seconds=10),
+                "burst_delay": timedelta(milliseconds=210),
             },
-            50
+            30
         ],
-        [
-            {
-                "refillers": [
-                    Refiller(key="5-sec", capacity=10, rate=timedelta(milliseconds=100)),
-                ],
-                "duration": timedelta(seconds=5),
-                "delay": 50
-            },
-            10
-        ]
     ]
 )
 def test_general_functionality(data: dict, expected: int):
     now = datetime.now()
-    limiter = Limiter(refillers=data["refillers"])
+    limiter = TmpFileLimiter(limits=data["limits"])
     trues = 0
     while datetime.now() - now < data["duration"]:
-        res = limiter.consume()
+        res = limiter.consume("key")
         if res:
             trues += 1
-        time.sleep(data["delay"] / 1000)
+        time.sleep(data["burst_delay"].seconds)
     assert trues == expected

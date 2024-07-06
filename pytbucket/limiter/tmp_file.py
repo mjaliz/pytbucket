@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from pytbucket.limiter.refiller import Refiller
 from pytbucket.limiter.bucket import Bucket
 from pytbucket.limiter.limiter import Limiter
+from pytbucket.limiter.limit import Limit
 
 
 class TmpFileLimiter(Limiter):
@@ -18,7 +19,7 @@ class TmpFileLimiter(Limiter):
             with open(file_path, "r") as f:
                 return Bucket(**json.loads(f.read()))
 
-        bucket = Bucket(num_refillers=len(self.refillers))
+        bucket = Bucket(tokens=[float("inf") for _ in range(len(self.refillers))], last_check=datetime.min)
         with open(file_path, "w") as f:
             f.write(bucket.model_dump_json())
         return bucket
@@ -32,27 +33,37 @@ class TmpFileLimiter(Limiter):
         bucket = self.__load_file(key)
         self.add_token(bucket)
         tokens = bucket.tokens
-
+        is_token_empty = True
         for i in range(len(tokens)):
-            if tokens[i] == 0:
-                return False
+            if tokens[i] <= 0:
+                is_token_empty = False
+                break
             tokens[i] -= 1
         self.__save_file(key, bucket)
-        return True
+        return is_token_empty
 
 
 if __name__ == '__main__':
-    limiter = TmpFileLimiter(refillers=[
-        Refiller(key='20-sec', rate=timedelta(seconds=1), capacity=30),
-        Refiller(key='5-sec', rate=timedelta(milliseconds=500), capacity=10),
+    limiter = TmpFileLimiter(limits=[
+        Limit(period=timedelta(seconds=5), rate=5, burst=20)
     ])
+    key = "sdfsfdwe"
     now = datetime.now()
-    while datetime.now() - now < timedelta(seconds=5):
-        print(limiter.consume("1"))
-        print(limiter.consume("2"))
+    while datetime.now() - now < timedelta(seconds=10):
+        print(limiter.consume(key))
+        # print(limiter.consume("2"))
+        time.sleep(0.2)
+    time.sleep(0.3)
+    print("more delay to pass burst")
+    now = datetime.now()
+    while datetime.now() - now < timedelta(seconds=10):
+        print(limiter.consume(key))
+        # print(limiter.consume("2"))
         time.sleep(0.3)
-    time.sleep(2)
-    while datetime.now() - now < timedelta(seconds=30):
-        print(limiter.consume("1"))
-        print(limiter.consume("2"))
+    print("deep sleep")
+    time.sleep(7)
+    now = datetime.now()
+    while datetime.now() - now < timedelta(seconds=12):
+        print(limiter.consume(key))
+        # print(limiter.consume("2"))
         time.sleep(0.8)
