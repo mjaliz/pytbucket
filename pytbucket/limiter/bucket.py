@@ -5,5 +5,5 @@ from datetime import datetime
 
 
 class Bucket(BaseModel):
-    tokens: list[float]
+    tokens: list[list[float]]
     last_check: datetime

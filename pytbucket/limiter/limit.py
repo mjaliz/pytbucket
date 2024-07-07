@@ -1,8 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import timedelta
 
 
 class Limit(BaseModel):
     period: timedelta
-    rate: int
-    burst: int
+    capacity: int = Field(gt=0)
+    burst: int = Field(gt=0)
