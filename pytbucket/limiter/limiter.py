@@ -18,10 +18,15 @@ class Limiter(BaseModel):
     def __gen_refillers(self) -> list[list[Refiller]]:
         refs = []
         self.limits = sorted(self.limits, key=lambda l: l.period)
+        smaller_burst_rate = timedelta(microseconds=0)
         for limit in self.limits:
             if limit.burst <= limit.capacity:
                 raise ValueError("Burst should be greater than capacity")
-            refs.append([Refiller(capacity=1, rate=limit.period / limit.burst),
+            burst_rate = limit.period / limit.burst
+            if burst_rate <= smaller_burst_rate:
+                raise ValueError("Limit with larger period should have bigger burst rate")
+            smaller_burst_rate = burst_rate
+            refs.append([Refiller(capacity=1, rate=burst_rate),
                          Refiller(capacity=limit.capacity, rate=limit.period / limit.capacity)])
         return refs
 
