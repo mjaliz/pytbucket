@@ -4,7 +4,7 @@ import tempfile
 import time
 from datetime import datetime, timedelta
 
-from pytbucket.limiter.bucket import Bucket
+from pytbucket.limiter.bucket import Bucket, Token
 from pytbucket.limiter.limiter import Limiter
 from pytbucket.limiter.limit import Limit
 
@@ -18,8 +18,9 @@ class TmpFileLimiter(Limiter):
             with open(file_path, "r") as f:
                 return Bucket(**json.loads(f.read()))
 
-        bucket = Bucket(tokens=[[float("inf"), float("inf")] for _ in range(len(self.refillers))],
-                        last_check=datetime.min)
+        bucket = Bucket(
+            tokens=[[Token(token=float("inf"), is_burst=r.is_burst) for r in refs] for refs in self.refillers],
+            last_check=datetime.min)
         with open(file_path, "w") as f:
             f.write(bucket.model_dump_json())
         return bucket

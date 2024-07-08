@@ -5,7 +5,7 @@ import math
 
 from pydantic import BaseModel
 
-from pytbucket.limiter.bucket import Bucket
+from pytbucket.limiter.bucket import Bucket, Token
 from pytbucket.limiter.refiller import Refiller
 from pytbucket.limiter.limit import Limit
 
@@ -26,7 +26,7 @@ class Limiter(BaseModel):
             if burst_rate <= smaller_burst_rate:
                 raise ValueError("Limit with larger period should have bigger burst rate")
             smaller_burst_rate = burst_rate
-            refs.append([Refiller(capacity=1, rate=burst_rate),
+            refs.append([Refiller(capacity=1, rate=burst_rate, is_burst=True),
                          Refiller(capacity=limit.capacity, rate=limit.period / limit.capacity)])
         return refs
 
@@ -34,18 +34,20 @@ class Limiter(BaseModel):
         self.refillers = self.__gen_refillers()
 
     def add_token(self, bucket: Bucket):
-        tokens = bucket.tokens
+        tokens: list[list[Token]] = bucket.tokens
         now = datetime.now()
         elapsed_time = now - bucket.last_check
         for n, ref in enumerate(self.refillers):
             for i, r in enumerate(ref):
                 new_tokens = elapsed_time / r.rate
-                tokens_to_add = tokens[n][i] + new_tokens
+                tokens_to_add = tokens[n][i].token + new_tokens
+                if n != 0 and tokens[n][i].is_burst:
+                    tokens_to_add = 1
                 if math.isinf(tokens_to_add):
-                    tokens[n][i] = r.capacity
+                    tokens[n][i].token = r.capacity
                 else:
-                    tokens[n][i] = min(r.capacity, int(tokens_to_add))
-                tokens[n][i] = max(0.0, tokens[n][i])
+                    tokens[n][i].token = min(r.capacity, int(tokens_to_add))
+                tokens[n][i].token = max(0.0, tokens[n][i].token)
         bucket.last_check = now
 
     def try_consume(self, bucket: Bucket) -> bool:
@@ -53,10 +55,11 @@ class Limiter(BaseModel):
         is_token_empty = True
         for n, t in enumerate(tokens):
             for i, _ in enumerate(t):
-                if tokens[n][i] <= 0:
+                now = datetime.now()
+                if tokens[n][i].token <= 0:
                     is_token_empty = False
                     break
-                tokens[n][i] -= 1
+                tokens[n][i].token -= 1
             else:
                 continue
             break
