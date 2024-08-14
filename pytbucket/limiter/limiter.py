@@ -48,7 +48,6 @@ class Limiter(BaseModel):
                 else:
                     tokens[n][i].token = min(r.capacity, int(tokens_to_add))
                 tokens[n][i].token = max(0.0, tokens[n][i].token)
-        bucket.last_check = now
 
     def try_consume(self, bucket: Bucket) -> bool:
         tokens = bucket.tokens
@@ -60,6 +59,7 @@ class Limiter(BaseModel):
                     is_token_empty = False
                     break
                 tokens[n][i].token -= 1
+                bucket.last_check = now
             else:
                 continue
             break
