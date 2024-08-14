@@ -52,17 +52,18 @@ class Limiter(BaseModel):
     def try_consume(self, bucket: Bucket) -> bool:
         tokens = bucket.tokens
         is_token_empty = True
+        now = datetime.now()
         for n, t in enumerate(tokens):
             for i, _ in enumerate(t):
-                now = datetime.now()
                 if tokens[n][i].token <= 0:
                     is_token_empty = False
                     break
                 tokens[n][i].token -= 1
-                bucket.last_check = now
             else:
                 continue
             break
+        else:
+            bucket.last_check = now
         return is_token_empty
 
     def consume(self, key: str) -> bool:
